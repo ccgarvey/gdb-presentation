@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 
-#define ROOT 0
+//#define 0 0
 
 using namespace std;
 
@@ -52,14 +52,17 @@ int main(int argc, char** argv){
     
     MPI_Init(&argc, &argv);
     
-    /* Busy wait! */
-    //bool waitGDB = true;
-    //while(waitGDB);
-    
-    
     int numProcs, myRank;
     MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+    
+    /* Busy wait! */
+    if(myRank == 0){
+        bool waitGDB = true;
+        while(waitGDB);
+    }
+    
+    MPI_Barrier(MPI_COMM_WORLD);
     
     //Read in a matrix
     ifstream fileA (argv[1]);
@@ -70,8 +73,8 @@ int main(int argc, char** argv){
     
     double* vectorA;
     double* vectorB;
-    int size, mySize; //size significant only at root
-    if(myRank == ROOT){
+    int size=-1, mySize; //size significant only at root
+    if(myRank == 0){
         //Read the sizes
         int sizeA = readSize(fileA);
         int sizeB = readSize(fileB);
@@ -82,28 +85,28 @@ int main(int argc, char** argv){
         }
         
         size = sizeA;
-        mySize = size/numProcs;
+        mySize = size/numProcs + size%numProcs;
     }
     
     //Broadcast the size to all processes
-    MPI_Bcast(&mySize, 1, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+    MPI_Bcast((void*) &mySize, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
     //Read the vectors and scatter them
     vectorA = new double[mySize];
     vectorB = new double[mySize];
     
-    if(myRank == ROOT){
+    if(myRank == 0){
         fullVectorA = readVector(fileA, size);
     }
     MPI_Scatter((void*) fullVectorA, mySize, MPI_DOUBLE, (void*) vectorA,
-                mySize, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+                mySize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
-    if(myRank == ROOT){
+    if(myRank == 0){
         fullVectorB = readVector(fileB, size);
     }
     
     MPI_Scatter((void*) fullVectorB, mySize, MPI_DOUBLE, (void*) vectorB,
-                mySize, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+                mySize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
     
     /******************************************************
@@ -117,7 +120,7 @@ int main(int argc, char** argv){
     //Free the things we don't need anymore
     delete[] vectorA;
     delete[] vectorB;
-    if(myRank == ROOT){
+    if(myRank == 0){
         delete[] fullVectorA;
         delete[] fullVectorB;
     }
@@ -126,19 +129,19 @@ int main(int argc, char** argv){
      *                   Gather Data
      ******************************************************/
     double* fullVectorC;
-    if(myRank == ROOT){
+    if(myRank == 0){
         fullVectorC = new double[size]; 
     }
     
     MPI_Gather((void*) vectorC, mySize, MPI_DOUBLE, (void*) fullVectorC,
-               size, MPI_DOUBLE, ROOT, MPI_COMM_WORLD);
+               mySize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
     /******************************************************
     *                    Store Result
     *******************************************************/
-    if(myRank == ROOT){
-        ofstream fileC (argv[3]);
-        writeOutput(fileC, vectorC, size);
+    ofstream fileC (argv[3]);
+    if(myRank == 0){
+        writeOutput(fileC, fullVectorC, size);
         delete[] fullVectorC;
     }
     
