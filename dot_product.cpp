@@ -60,8 +60,6 @@ int main(int argc, char** argv){
         return -1;
     }
     
-    size = sizeA;
-    
     double* vectorA = readVector(fileA, size);
     double* vectorB = readVector(fileB, size);
     
