@@ -64,7 +64,7 @@ int main(int argc, char** argv){
     
     MPI_Barrier(MPI_COMM_WORLD);
     
-    //Read in a matrix
+    //Read in a vector
     ifstream fileA (argv[1]);
     ifstream fileB (argv[2]);
     
