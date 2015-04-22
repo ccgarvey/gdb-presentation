@@ -1,4 +1,3 @@
-#include "mpi.h"
 #include <cstdio>
 #include <iostream>
 #include <fstream>
@@ -14,6 +13,13 @@ using namespace std;
  * param: filename, the name of the file to load
  * return: an 
  */
+
+int readSize(ifstream& file){
+    int size;
+    file >> size;
+    return size;
+}
+
 double* readVector(ifstream& file, int size){
     double* vector = new double[size];
     
@@ -24,35 +30,58 @@ double* readVector(ifstream& file, int size){
     return vector;
 }
 
-double* readVector(string filename){
-    ifstream file (filename.c_str());
-    int size;
-    file >> size;
-    return readVector(file, size);
+void writeOutput(ofstream& file, double* vector, int size){
+    file << size << endl;
+    for(int i = 0; i < size; i++){
+        file << vector[i] << endl;
+    }
 }
 
 int main(int argc, char** argv){
+    int size;
     /******************************************************
-     *                  MPI STUFF BELOW
+     *                Read input from files
      ******************************************************/
-    if(argc < 3){
-        cerr << "Must run as dot_product <VECTOR A FILE> <VECTOR B FILE>"
+    if(argc != 4){
+        cerr << "Arguments must be <VECTOR A FILE> <VECTOR B FILE> <OUT FILE>"
              << endl;
+        return -1;
     }
-    MPI_Init(&argc, &argv);
-    
-    int numProcs, myRank;
-    MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     
     //Read in a matrix
-    double* vectorA = readVector(string(argv[0]));
+    ifstream fileA (argv[1]);
+    ifstream fileB (argv[2]);
+    
+    int sizeA = readSize(fileA);
+    int sizeB = readSize(fileB);
+    
+    if(sizeA != sizeB){
+        cerr << "Inconsistent sizes in files. Aborting." << endl;
+        return -1;
+    }
+    
+    size = sizeA;
+    
+    double* vectorA = readVector(fileA, size);
+    double* vectorB = readVector(fileB, size);
     
     /******************************************************
      *                    Dot Product
      ******************************************************/
+    double* vectorC = new double[size];
+    for(int i = 0; i < size; i++){
+        vectorC[i] = vectorA[i]*vectorB[i];
+    }
     
+    //Free the things we don't need anymore
+    delete[] vectorA;
+    delete[] vectorB;
     
+    /******************************************************
+    *                    Store Result
+    *******************************************************/
+    ofstream fileC (argv[3]);
+    writeOutput(fileC, vectorC, size);
     
-    MPI_Finalize();
+    delete[] vectorC;
 }
